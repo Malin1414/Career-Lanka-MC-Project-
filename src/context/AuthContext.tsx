@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile, AssessmentAnswers, SavedCareer, CVData } from '../types';
+import { supabase } from '../services/supabase';
 
 interface AuthContextType {
   user: { id: string; email: string } | null;
@@ -39,7 +40,7 @@ const DEFAULT_PROFILE: UserProfile = {
   skills: ['Python', 'React / Next.js', 'AWS Cloud', 'TypeScript', 'PostgreSQL', 'Docker', 'GraphQL'],
   interests: ['Software Development', 'Artificial Intelligence', 'Cloud Computing', 'UI/UX Design'],
   career_goal: 'Full Stack Software Engineer or AI Solutions Architect',
-  profile_photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop',
+  profile_photo: '',
   updated_at: new Date().toISOString(),
 };
 
@@ -144,7 +145,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (storedProfile) {
               setProfile(JSON.parse(storedProfile));
             } else {
-              // Try legacy key
               const legacyProfile = await AsyncStorage.getItem('@user_profile');
               if (legacyProfile) {
                 await AsyncStorage.setItem(userProfileKey, legacyProfile);
@@ -158,7 +158,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (storedCV) {
               setCvData(JSON.parse(storedCV));
             } else {
-              // Try legacy key
               const legacyCV = await AsyncStorage.getItem('@cv_data');
               if (legacyCV) {
                 await AsyncStorage.setItem(userCVKey, legacyCV);
@@ -172,7 +171,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (storedSavedCareers) {
               setSavedCareers(JSON.parse(storedSavedCareers));
             } else {
-              // Try legacy key
               const legacyCareers = await AsyncStorage.getItem('@saved_careers');
               if (legacyCareers) {
                 await AsyncStorage.setItem(userCareersKey, legacyCareers);
@@ -183,7 +181,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (storedAssessment) {
               setAssessmentAnswers(JSON.parse(storedAssessment));
             } else {
-              // Try legacy key
               const legacyAssess = await AsyncStorage.getItem('@assessment_answers');
               if (legacyAssess) {
                 await AsyncStorage.setItem(userAssessKey, legacyAssess);
@@ -196,6 +193,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (storedCV) setCvData(JSON.parse(storedCV));
             if (storedSavedCareers) setSavedCareers(JSON.parse(storedSavedCareers));
             if (storedAssessment) setAssessmentAnswers(JSON.parse(storedAssessment));
+
+            // Sync from Supabase tables asynchronously to ensure freshest remote state
+            try {
+              const { data: dbProfile } = await supabase
+                .from('student_profiles')
+                .select('*')
+                .eq('id', uid)
+                .single();
+              if (dbProfile) {
+                setProfile(dbProfile);
+                await AsyncStorage.setItem(userProfileKey, JSON.stringify(dbProfile));
+              }
+
+              const { data: dbCareers } = await supabase
+                .from('saved_careers')
+                .select('*')
+                .eq('student_id', uid);
+              if (dbCareers && dbCareers.length > 0) {
+                setSavedCareers(dbCareers);
+                await AsyncStorage.setItem(userCareersKey, JSON.stringify(dbCareers));
+              }
+
+              const { data: dbAssess } = await supabase
+                .from('career_assessments')
+                .select('*')
+                .eq('student_id', uid)
+                .order('created_at', { ascending: false })
+                .limit(1);
+              if (dbAssess && dbAssess.length > 0) {
+                setAssessmentAnswers(dbAssess[0]);
+                await AsyncStorage.setItem(userAssessKey, JSON.stringify(dbAssess[0]));
+              }
+            } catch (syncErr) {
+              console.warn('Supabase sync warning (using local cached state):', syncErr);
+            }
           }
         }
       } catch (e) {
@@ -209,79 +241,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Artificial delay to simulate server communication
-    await new Promise((res) => setTimeout(res, 1200));
-
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check against default demo account
+    // Check against default local demo account
     if (cleanEmail === 'demo@student.lk') {
       if (password === '123456') {
         const mockSession = { id: 'demo-student', email: 'demo@student.lk' };
-        
         try {
           await AsyncStorage.setItem('@user_session', JSON.stringify(mockSession));
           
-          // Load user-specific profile
           const userProfileKey = getProfileKey('demo-student');
           const storedProfile = await AsyncStorage.getItem(userProfileKey);
           let localProfile = DEFAULT_PROFILE;
           if (storedProfile) {
             localProfile = JSON.parse(storedProfile);
           } else {
-            // Try legacy migration
-            const legacyProfile = await AsyncStorage.getItem('@user_profile');
-            if (legacyProfile) {
-              localProfile = JSON.parse(legacyProfile);
-            }
             await AsyncStorage.setItem(userProfileKey, JSON.stringify(localProfile));
           }
 
-          // Load user-specific CV
           const userCVKey = getCVKey('demo-student');
           const storedCV = await AsyncStorage.getItem(userCVKey);
           let localCV = DEFAULT_CV;
           if (storedCV) {
             localCV = JSON.parse(storedCV);
           } else {
-            // Try legacy migration
-            const legacyCV = await AsyncStorage.getItem('@cv_data');
-            if (legacyCV) {
-              localCV = JSON.parse(legacyCV);
-            }
             await AsyncStorage.setItem(userCVKey, JSON.stringify(localCV));
           }
 
-          // Load user-specific saved careers
           const userCareersKey = getSavedCareersKey('demo-student');
           const storedSavedCareers = await AsyncStorage.getItem(userCareersKey);
           if (storedSavedCareers) {
             setSavedCareers(JSON.parse(storedSavedCareers));
           } else {
-            // Try legacy migration
-            const legacyCareers = await AsyncStorage.getItem('@saved_careers');
-            if (legacyCareers) {
-              await AsyncStorage.setItem(userCareersKey, legacyCareers);
-              setSavedCareers(JSON.parse(legacyCareers));
-            } else {
-              setSavedCareers([]);
-            }
+            setSavedCareers([]);
           }
 
-          // Load user-specific assessments
           const userAssessKey = getAssessmentAnswersKey('demo-student');
           const storedAssessment = await AsyncStorage.getItem(userAssessKey);
           if (storedAssessment) {
             setAssessmentAnswers(JSON.parse(storedAssessment));
           } else {
-            // Try legacy migration
-            const legacyAssess = await AsyncStorage.getItem('@assessment_answers');
-            if (legacyAssess) {
-              await AsyncStorage.setItem(userAssessKey, legacyAssess);
-              setAssessmentAnswers(JSON.parse(legacyAssess));
-            } else {
-              setAssessmentAnswers(null);
-            }
+            setAssessmentAnswers(null);
           }
 
           setUser(mockSession);
@@ -297,43 +297,132 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Check against registered users list
+    // Attempt remote Supabase authentication
     try {
-      const storedUsers = await AsyncStorage.getItem('@registered_users');
-      const registeredUsers = storedUsers ? JSON.parse(storedUsers) : [];
-      
-      const matchedUser = registeredUsers.find(
-        (u: any) => u.email.toLowerCase() === cleanEmail
-      );
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
 
-      if (!matchedUser) {
-        return { success: false, error: 'User not found' };
+      if (authError) {
+        // Fallback: Check against local AsyncStorage registered users
+        const storedUsers = await AsyncStorage.getItem('@registered_users');
+        const registeredUsers = storedUsers ? JSON.parse(storedUsers) : [];
+        const matchedLocalUser = registeredUsers.find(
+          (u: any) => u.email.toLowerCase() === cleanEmail
+        );
+
+        if (matchedLocalUser && matchedLocalUser.password === password) {
+          const userSession = { id: matchedLocalUser.id, email: matchedLocalUser.email };
+          await AsyncStorage.setItem('@user_session', JSON.stringify(userSession));
+
+          const localProfileKey = getProfileKey(matchedLocalUser.id);
+          const localCVKey = getCVKey(matchedLocalUser.id);
+          const localCareersKey = getSavedCareersKey(matchedLocalUser.id);
+          const localAssessKey = getAssessmentAnswersKey(matchedLocalUser.id);
+
+          const storedProfile = await AsyncStorage.getItem(localProfileKey);
+          const storedCV = await AsyncStorage.getItem(localCVKey);
+          const storedCareers = await AsyncStorage.getItem(localCareersKey);
+          const storedAssess = await AsyncStorage.getItem(localAssessKey);
+
+          setUser(userSession);
+          setProfile(storedProfile ? JSON.parse(storedProfile) : null);
+          setCvData(storedCV ? JSON.parse(storedCV) : null);
+          setSavedCareers(storedCareers ? JSON.parse(storedCareers) : []);
+          setAssessmentAnswers(storedAssess ? JSON.parse(storedAssess) : null);
+
+          return { success: true, error: null };
+        }
+
+        return { success: false, error: authError.message };
       }
 
-      if (matchedUser.password !== password) {
-        return { success: false, error: 'Wrong password' };
+      if (!authData.user) {
+        return { success: false, error: 'Authentication failed. Please verify credentials.' };
       }
 
-      // Valid Credentials - Load User Session
-      const userSession = { id: matchedUser.id, email: matchedUser.email };
+      // Supabase Authenticated - Load Profile and credentials
+      const uid = authData.user.id;
+      const userSession = { id: uid, email: cleanEmail };
       await AsyncStorage.setItem('@user_session', JSON.stringify(userSession));
 
-      // Fetch user-specific records
-      const userProfileKey = getProfileKey(matchedUser.id);
-      const userCVKey = getCVKey(matchedUser.id);
-      const userCareersKey = getSavedCareersKey(matchedUser.id);
-      const userAssessKey = getAssessmentAnswersKey(matchedUser.id);
+      const userProfileKey = getProfileKey(uid);
+      const userCVKey = getCVKey(uid);
+      const userCareersKey = getSavedCareersKey(uid);
+      const userAssessKey = getAssessmentAnswersKey(uid);
 
-      const storedProfile = await AsyncStorage.getItem(userProfileKey);
+      // Fetch Profile from Supabase student_profiles
+      let activeProfile: UserProfile | null = null;
+      try {
+        const { data: dbProfile } = await supabase
+          .from('student_profiles')
+          .select('*')
+          .eq('id', uid)
+          .single();
+        if (dbProfile) {
+          activeProfile = dbProfile;
+          await AsyncStorage.setItem(userProfileKey, JSON.stringify(dbProfile));
+        }
+      } catch (e) {
+        console.warn('Failed to retrieve remote student profile:', e);
+      }
+
+      // If remote profile lookup fails, load local copy
+      if (!activeProfile) {
+        const storedProfile = await AsyncStorage.getItem(userProfileKey);
+        if (storedProfile) activeProfile = JSON.parse(storedProfile);
+      }
+
+      // Fetch assessments from remote
+      let activeAssessment: AssessmentAnswers | null = null;
+      try {
+        const { data: dbAssess } = await supabase
+          .from('career_assessments')
+          .select('*')
+          .eq('student_id', uid)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (dbAssess && dbAssess.length > 0) {
+          activeAssessment = dbAssess[0];
+          await AsyncStorage.setItem(userAssessKey, JSON.stringify(activeAssessment));
+        }
+      } catch (e) {
+        console.warn('Failed to retrieve remote career assessments:', e);
+      }
+
+      if (!activeAssessment) {
+        const storedAssess = await AsyncStorage.getItem(userAssessKey);
+        if (storedAssess) activeAssessment = JSON.parse(storedAssess);
+      }
+
+      // Fetch saved careers from remote
+      let activeCareers: SavedCareer[] = [];
+      try {
+        const { data: dbCareers } = await supabase
+          .from('saved_careers')
+          .select('*')
+          .eq('student_id', uid);
+        if (dbCareers) {
+          activeCareers = dbCareers;
+          await AsyncStorage.setItem(userCareersKey, JSON.stringify(activeCareers));
+        }
+      } catch (e) {
+        console.warn('Failed to retrieve remote saved careers:', e);
+      }
+
+      if (activeCareers.length === 0) {
+        const storedCareers = await AsyncStorage.getItem(userCareersKey);
+        if (storedCareers) activeCareers = JSON.parse(storedCareers);
+      }
+
       const storedCV = await AsyncStorage.getItem(userCVKey);
-      const storedSavedCareers = await AsyncStorage.getItem(userCareersKey);
-      const storedAssessment = await AsyncStorage.getItem(userAssessKey);
 
       setUser(userSession);
-      setProfile(storedProfile ? JSON.parse(storedProfile) : null);
+      setProfile(activeProfile);
+      setSavedCareers(activeCareers);
+      setAssessmentAnswers(activeAssessment);
       setCvData(storedCV ? JSON.parse(storedCV) : null);
-      setSavedCareers(storedSavedCareers ? JSON.parse(storedSavedCareers) : []);
-      setAssessmentAnswers(storedAssessment ? JSON.parse(storedAssessment) : null);
 
       return { success: true, error: null };
     } catch (e: any) {
@@ -346,40 +435,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string,
     profileData: Omit<UserProfile, 'id' | 'updated_at'>
   ) => {
-    // Artificial delay
-    await new Promise((res) => setTimeout(res, 1500));
-
     const cleanEmail = email.trim().toLowerCase();
 
-    try {
-      // 1. Fetch current users list
-      const storedUsers = await AsyncStorage.getItem('@registered_users');
-      const registeredUsers = storedUsers ? JSON.parse(storedUsers) : [];
+    if (cleanEmail === 'demo@student.lk') {
+      return { success: false, error: 'Cannot register using the demo account.' };
+    }
 
-      // Check if email already registered
-      if (cleanEmail === 'demo@student.lk' || registeredUsers.some((u: any) => u.email.toLowerCase() === cleanEmail)) {
-        return { success: false, error: 'Email address already registered.' };
+    try {
+      // 1. SignUp via Supabase Authentication
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+      });
+
+      if (authError) {
+        return { success: false, error: authError.message };
       }
 
-      // 2. Generate unique user ID
-      const newUserId = 'student-' + Math.random().toString(36).substring(7);
+      const newUserId = authData.user?.id || 'student-' + Math.random().toString(36).substring(7);
 
-      // 3. Create profile
+      // 2. Create profile payload
       const newProfile: UserProfile = {
         id: newUserId,
         ...profileData,
-        profile_photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop',
+        profile_photo: profileData.profile_photo || '',
         updated_at: new Date().toISOString(),
       };
-      
-      // Save profile to user-specific key
+
+      // 3. Write profile to Supabase student_profiles
+      try {
+        await supabase.from('student_profiles').insert({
+          id: newUserId,
+          full_name: newProfile.full_name,
+          university: newProfile.university,
+          faculty: newProfile.faculty || '',
+          degree_program: newProfile.degree_program,
+          academic_year: newProfile.academic_year,
+          district: newProfile.district || '',
+          skills: newProfile.skills || [],
+          interests: newProfile.interests || [],
+          career_goal: newProfile.career_goal || '',
+          profile_photo: newProfile.profile_photo,
+        });
+      } catch (insertErr) {
+        console.warn('Failed to insert remote student profile:', insertErr);
+      }
+
+      // Save profile to user-specific local storage
       await AsyncStorage.setItem(getProfileKey(newUserId), JSON.stringify(newProfile));
-      
-      // 4. Pre-seed a template CV
+
+      // 4. Pre-seed standard template CV
       const customCV: CVData = {
         fullName: profileData.full_name,
         title: 'Undergraduate Student',
-        email: email,
+        email: cleanEmail,
         phone: '',
         github: '',
         linkedin: '',
@@ -403,45 +512,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       await AsyncStorage.setItem(getCVKey(newUserId), JSON.stringify(customCV));
 
-      // 5. Append user login details to user store
+      // 5. Append locally for offline support
+      const storedUsers = await AsyncStorage.getItem('@registered_users');
+      const registeredUsers = storedUsers ? JSON.parse(storedUsers) : [];
       const newUserRecord = {
         id: newUserId,
         email: cleanEmail,
-        password: password, // Store password as plain text in prototype local storage
+        password: password,
       };
-
-      const updatedUsersList = [...registeredUsers, newUserRecord];
-      await AsyncStorage.setItem('@registered_users', JSON.stringify(updatedUsersList));
+      await AsyncStorage.setItem(
+        '@registered_users',
+        JSON.stringify([...registeredUsers, newUserRecord])
+      );
 
       return { success: true, error: null };
     } catch (e: any) {
-      return { success: false, error: e.message || 'Failed to register account locally' };
+      return { success: false, error: e.message || 'Failed to register account' };
     }
   };
 
   const signOut = async () => {
     setLoading(true);
     try {
-      // Clear only the current active session
-      await AsyncStorage.removeItem('@user_session');
+      // Attempt remote sign out but ignore failures so local state is always cleared
+      await supabase.auth.signOut().catch((err) => {
+        console.warn('Supabase remote sign out failed, clearing local state anyway:', err);
+      });
+    } catch (e) {
+      console.warn('Sign out error:', e);
+    } finally {
+      try {
+        await AsyncStorage.removeItem('@user_session');
+      } catch (err) {
+        console.error('AsyncStorage clear user session error:', err);
+      }
       setUser(null);
       setProfile(null);
       setCvData(null);
       setSavedCareers([]);
       setAssessmentAnswers(null);
-    } catch (e) {
-      console.error('Logout error:', e);
-    } finally {
       setLoading(false);
     }
   };
 
   const updateProfile = async (profileData: Partial<UserProfile>) => {
     if (!user) return { success: false, error: 'No active session' };
-    
-    setProfileLoading(true);
-    await new Promise((res) => setTimeout(res, 800));
 
+    setProfileLoading(true);
     try {
       if (!profile) throw new Error('No profile exists to update');
       const updatedProfile = {
@@ -450,16 +567,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updated_at: new Date().toISOString(),
       };
 
-      // Save user-specific profile
+      // 1. Save local copy
       await AsyncStorage.setItem(getProfileKey(user.id), JSON.stringify(updatedProfile));
       setProfile(updatedProfile);
 
-      // Keep CV full name synced
+      // 2. Sync to Supabase student_profiles
+      if (user.id !== 'demo-student') {
+        try {
+          await supabase
+            .from('student_profiles')
+            .update({
+              full_name: updatedProfile.full_name,
+              university: updatedProfile.university,
+              faculty: updatedProfile.faculty || '',
+              degree_program: updatedProfile.degree_program,
+              academic_year: updatedProfile.academic_year,
+              district: updatedProfile.district || '',
+              skills: updatedProfile.skills || [],
+              interests: updatedProfile.interests || [],
+              career_goal: updatedProfile.career_goal || '',
+              profile_photo: updatedProfile.profile_photo || '',
+              updated_at: updatedProfile.updated_at,
+            })
+            .eq('id', user.id);
+        } catch (dbErr) {
+          console.warn('Failed to sync updated profile to database:', dbErr);
+        }
+      }
+
+      // Keep CV full name and address synced
       if (cvData) {
         const updatedCV = {
           ...cvData,
           fullName: updatedProfile.full_name,
-          address: updatedProfile.district || cvData.address
+          address: updatedProfile.district || cvData.address,
         };
         await AsyncStorage.setItem(getCVKey(user.id), JSON.stringify(updatedCV));
         setCvData(updatedCV);
@@ -485,9 +626,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         created_at: new Date().toISOString(),
       };
 
+      // Local save
       const updated = [newSavedItem, ...savedCareers];
       await AsyncStorage.setItem(getSavedCareersKey(user.id), JSON.stringify(updated));
       setSavedCareers(updated);
+
+      // Sync to Supabase table
+      if (user.id !== 'demo-student') {
+        try {
+          await supabase.from('saved_careers').insert({
+            student_id: user.id,
+            career_name: career.career_name,
+            match_score: career.match_score,
+            reason: career.reason,
+            required_skills: career.required_skills,
+            future_demand: career.future_demand,
+            salary_range: career.salary_range,
+            description: career.description,
+            required_degree: career.required_degree,
+            recommended_certifications: career.recommended_certifications,
+            career_roadmap: career.career_roadmap,
+            job_demand: career.job_demand,
+            companies_hiring: career.companies_hiring,
+            learning_resources: career.learning_resources,
+          });
+        } catch (syncErr) {
+          console.warn('Saved career sync error:', syncErr);
+        }
+      }
 
       return { success: true, id: newId };
     } catch (e) {
@@ -499,9 +665,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return { success: false };
 
     try {
+      const itemToDelete = savedCareers.find((item) => item.id === careerId);
       const updated = savedCareers.filter((item) => item.id !== careerId);
       await AsyncStorage.setItem(getSavedCareersKey(user.id), JSON.stringify(updated));
       setSavedCareers(updated);
+
+      // Sync delete with Supabase
+      if (user.id !== 'demo-student' && itemToDelete) {
+        try {
+          await supabase
+            .from('saved_careers')
+            .delete()
+            .eq('student_id', user.id)
+            .eq('career_name', itemToDelete.career_name);
+        } catch (syncErr) {
+          console.warn('Saved career delete sync error:', syncErr);
+        }
+      }
+
       return { success: true };
     } catch (e) {
       return { success: false };
@@ -531,6 +712,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       await AsyncStorage.setItem(getAssessmentAnswersKey(user.id), JSON.stringify(mockAnswers));
       setAssessmentAnswers(mockAnswers);
+
+      // Sync assessment details with Supabase
+      if (user.id !== 'demo-student') {
+        try {
+          await supabase.from('career_assessments').insert({
+            student_id: user.id,
+            interests: answers.interests,
+            programming_skills: answers.programming_skills,
+            soft_skills: answers.soft_skills,
+            favourite_subjects: answers.favourite_subjects,
+            preferred_working_style: answers.preferred_working_style,
+            career_interests: answers.career_interests,
+          });
+        } catch (syncErr) {
+          console.warn('Career assessment sync error:', syncErr);
+        }
+      }
+
       return { success: true };
     } catch (e) {
       return { success: false };

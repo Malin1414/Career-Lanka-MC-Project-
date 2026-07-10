@@ -11,6 +11,7 @@ import {
   ScrollView,
   Alert,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { Theme } from '../utils/theme';
@@ -57,7 +58,10 @@ export default function LoginScreen({ navigation }: Props) {
     if (!success) {
       Alert.alert('Login Failed', error || 'Invalid email or password.');
     } else {
-      navigation.replace('MainTabs');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
     }
   };
 
@@ -74,7 +78,7 @@ export default function LoginScreen({ navigation }: Props) {
       
       {/* Top Header Row */}
       <View style={styles.topBrandBar}>
-        <Ionicons name="git-network" size={24} color={Theme.colors.primary} />
+        <Image source={require('../../assets/logo.png')} style={styles.smallLogo} resizeMode="contain" />
         <Text style={styles.brandText}>CareerLanka AI</Text>
       </View>
       <View style={styles.separator} />
@@ -152,31 +156,7 @@ export default function LoginScreen({ navigation }: Props) {
             )}
           </TouchableOpacity>
 
-          {/* Network Access Divider */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>NETWORK ACCESS</Text>
-            <View style={styles.dividerLine} />
-          </View>
 
-          {/* Social Buttons */}
-          <View style={styles.socialButtonsRow}>
-            <TouchableOpacity 
-              style={styles.socialButton} 
-              onPress={() => Alert.alert('Google Auth', 'Sign in with Google (Simulated)')}
-            >
-              <Ionicons name="logo-google" size={16} color="#EA4335" style={{ marginRight: 8 }} />
-              <Text style={styles.socialButtonText}>Google</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.socialButton} 
-              onPress={() => Alert.alert('LinkedIn Auth', 'Sign in with LinkedIn (Simulated)')}
-            >
-              <Ionicons name="logo-linkedin" size={16} color="#0077B5" style={{ marginRight: 8 }} />
-              <Text style={styles.socialButtonText}>LinkedIn</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Footer Link */}
@@ -213,6 +193,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: Theme.colors.primary,
+  },
+  smallLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
   },
   separator: {
     height: 1,

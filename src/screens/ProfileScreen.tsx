@@ -16,11 +16,12 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { Theme } from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 const ACADEMIC_YEARS = ['1st Year', '2nd Year', '3rd Year', 'Finalist'];
 
 export default function ProfileScreen({ navigation }: any) {
-  const { profile, updateProfile, profileLoading } = useAuth();
+  const { user, profile, updateProfile, profileLoading, signOut } = useAuth();
   
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -35,6 +36,83 @@ export default function ProfileScreen({ navigation }: any) {
   const [careerGoal, setCareerGoal] = useState('');
   const [profilePhoto, setProfilePhoto] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const handleSelectAvatar = () => {
+    Alert.alert(
+      'Profile Photo',
+      'Choose an option to update your profile photo:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Upload from Gallery', onPress: pickImageFromGallery },
+        { text: 'Remove Photo', style: 'destructive', onPress: handleRemovePhoto }
+      ]
+    );
+  };
+
+  const pickImageFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Career Lanka needs library permissions to select photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      let photoUrl = asset.uri;
+
+      if (asset.base64) {
+        photoUrl = `data:image/jpeg;base64,${asset.base64}`;
+      }
+
+      setProfilePhoto(photoUrl);
+      const updateResult = await updateProfile({ profile_photo: photoUrl });
+
+      if (updateResult.success) {
+        Alert.alert('Success', 'Profile photo updated successfully.');
+      } else {
+        Alert.alert('Upload Failed', updateResult.error || 'Failed to sync photo to storage service.');
+      }
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setProfilePhoto('');
+    const updateResult = await updateProfile({ profile_photo: '' });
+    if (updateResult.success) {
+      Alert.alert('Photo Removed', 'Your profile photo has been reset to default.');
+    } else {
+      Alert.alert('Failed to Remove Photo', updateResult.error || 'Failed to remove photo.');
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out of Career Lanka?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
+          },
+        },
+      ]
+    );
+  };
 
   // Sync state with profile data
   useEffect(() => {
@@ -94,7 +172,7 @@ export default function ProfileScreen({ navigation }: any) {
       {/* Top Header / Brand Bar */}
       <View style={styles.topBrandBar}>
         <View style={styles.brandContainer}>
-          <Ionicons name="git-network" size={24} color={Theme.colors.primary} />
+          <Image source={require('../../assets/logo.png')} style={styles.smallLogo} resizeMode="contain" />
           <Text style={styles.brandText}>CareerLanka AI</Text>
         </View>
         <View style={styles.headerRightActions}>
@@ -193,19 +271,6 @@ export default function ProfileScreen({ navigation }: any) {
               />
             </View>
 
-            <Text style={styles.label}>Profile Photo URL</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                value={profilePhoto}
-                onChangeText={setProfilePhoto}
-                placeholder="e.g. https://domain.com/photo.jpg"
-                autoCapitalize="none"
-                autoCorrect={false}
-                placeholderTextColor={Theme.colors.textSecondary}
-              />
-            </View>
-
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
               {saving ? (
                 <ActivityIndicator size="small" color="#0A0B0D" />
@@ -222,17 +287,23 @@ export default function ProfileScreen({ navigation }: any) {
           <View style={styles.viewContainer}>
             {/* Profile Avatar & Primary Credentials */}
             <View style={styles.profileBanner}>
-              <View style={styles.avatarWrapper}>
-                <Image 
-                  source={{ uri: profile?.profile_photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop' }} 
-                  style={styles.avatarImage} 
-                />
+              <TouchableOpacity style={styles.avatarWrapper} onPress={handleSelectAvatar}>
+                {profile?.profile_photo && !profile.profile_photo.includes('unsplash.com') ? (
+                  <Image 
+                    source={{ uri: profile.profile_photo }} 
+                    style={styles.avatarImage} 
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="camera-outline" size={32} color="#94A3B8" />
+                  </View>
+                )}
                 <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark" size={14} color="#0A0B0D" />
+                  <Ionicons name="camera" size={12} color="#0A0B0D" />
                 </View>
-              </View>
+              </TouchableOpacity>
 
-              <Text style={styles.profileName}>{profile?.full_name || 'Saman Perera'}</Text>
+              <Text style={styles.profileName}>{profile?.full_name || 'No Name Provided'}</Text>
               <Text style={styles.profileTag}>Finalist @ {profile?.university || 'University of Colombo'}</Text>
 
               {/* Bio Details Info Cards */}
@@ -247,7 +318,7 @@ export default function ProfileScreen({ navigation }: any) {
                 </View>
                 <View style={styles.detailItem}>
                   <Ionicons name="mail-outline" size={16} color={Theme.colors.primary} />
-                  <Text style={styles.detailItemText}>saman.p@careerlanka.ai</Text>
+                  <Text style={styles.detailItemText}>{user?.email || 'No Email'}</Text>
                 </View>
               </View>
 
@@ -271,7 +342,7 @@ export default function ProfileScreen({ navigation }: any) {
                 <View style={styles.uniDetails}>
                   <Text style={styles.uniName}>{profile?.university || 'University of Colombo'}</Text>
                   <Text style={styles.uniFaculty}>{profile?.faculty || 'School of Computing'}</Text>
-                  <Text style={styles.uniStatus}>Undergraduate Finalist</Text>
+                  <Text style={styles.uniStatus}>{profile?.academic_year || 'Undergraduate Finalist'}</Text>
                 </View>
               </View>
             </View>
@@ -289,45 +360,68 @@ export default function ProfileScreen({ navigation }: any) {
               </View>
 
               {/* Skill 1 */}
-              <View style={styles.skillProgressItem}>
-                <View style={styles.skillLabelRow}>
-                  <Text style={styles.skillLabel}>Python</Text>
-                  <Text style={styles.skillPercent}>90%</Text>
-                </View>
-                <View style={styles.progressBarBg}>
-                  <View style={[styles.progressBarFill, { width: '90%', backgroundColor: Theme.colors.primary }]} />
-                </View>
-              </View>
-
-              {/* Skill 2 */}
-              <View style={styles.skillProgressItem}>
-                <View style={styles.skillLabelRow}>
-                  <Text style={styles.skillLabel}>React / Next.js</Text>
-                  <Text style={styles.skillPercent}>85%</Text>
-                </View>
-                <View style={styles.progressBarBg}>
-                  <View style={[styles.progressBarFill, { width: '85%', backgroundColor: Theme.colors.primary }]} />
-                </View>
-              </View>
-
-              {/* Skill 3 */}
-              <View style={styles.skillProgressItem}>
-                <View style={styles.skillLabelRow}>
-                  <Text style={styles.skillLabel}>AWS Cloud</Text>
-                  <Text style={styles.skillPercent}>70%</Text>
-                </View>
-                <View style={styles.progressBarBg}>
-                  <View style={[styles.progressBarFill, { width: '70%', backgroundColor: Theme.colors.primary }]} />
-                </View>
-              </View>
+              {profile?.skills && profile.skills.length > 0 ? (
+                profile.skills.slice(0, 3).map((skill, index) => {
+                  const percent = index === 0 ? '90%' : index === 1 ? '85%' : '70%';
+                  return (
+                    <View key={skill} style={styles.skillProgressItem}>
+                      <View style={styles.skillLabelRow}>
+                        <Text style={styles.skillLabel}>{skill.trim()}</Text>
+                        <Text style={styles.skillPercent}>{percent}</Text>
+                      </View>
+                      <View style={styles.progressBarBg}>
+                        <View style={[styles.progressBarFill, { width: percent, backgroundColor: Theme.colors.primary }]} />
+                      </View>
+                    </View>
+                  );
+                })
+              ) : (
+                <>
+                  <View style={styles.skillProgressItem}>
+                    <View style={styles.skillLabelRow}>
+                      <Text style={styles.skillLabel}>Python</Text>
+                      <Text style={styles.skillPercent}>90%</Text>
+                    </View>
+                    <View style={styles.progressBarBg}>
+                      <View style={[styles.progressBarFill, { width: '90%', backgroundColor: Theme.colors.primary }]} />
+                    </View>
+                  </View>
+                  <View style={styles.skillProgressItem}>
+                    <View style={styles.skillLabelRow}>
+                      <Text style={styles.skillLabel}>React / Next.js</Text>
+                      <Text style={styles.skillPercent}>85%</Text>
+                    </View>
+                    <View style={styles.progressBarBg}>
+                      <View style={[styles.progressBarFill, { width: '85%', backgroundColor: Theme.colors.primary }]} />
+                    </View>
+                  </View>
+                  <View style={styles.skillProgressItem}>
+                    <View style={styles.skillLabelRow}>
+                      <Text style={styles.skillLabel}>AWS Cloud</Text>
+                      <Text style={styles.skillPercent}>70%</Text>
+                    </View>
+                    <View style={styles.progressBarBg}>
+                      <View style={[styles.progressBarFill, { width: '70%', backgroundColor: Theme.colors.primary }]} />
+                    </View>
+                  </View>
+                </>
+              )}
 
               {/* Tag Chips */}
               <View style={styles.chipsContainer}>
-                {['TypeScript', 'PostgreSQL', 'Docker', 'GraphQL'].map((item) => (
-                  <View key={item} style={styles.skillChip}>
-                    <Text style={styles.skillChipText}>{item}</Text>
-                  </View>
-                ))}
+                {profile?.skills && profile.skills.length > 0 ? (
+                  profile.skills.map((item) => (
+                    <View key={item} style={styles.skillChip}>
+                      <Text style={styles.skillChipText}>{item.trim()}</Text>
+                    </View>
+                  ))
+                ) : (
+                  ['TypeScript', 'PostgreSQL', 'Docker', 'GraphQL'].map((item) => (
+                    <View key={item} style={styles.skillChip}>
+                      <Text style={styles.skillChipText}>{item}</Text>
+                    </View>
+                  ))
+                )}
               </View>
             </View>
 
@@ -428,6 +522,125 @@ export default function ProfileScreen({ navigation }: any) {
                 <Text style={styles.yearLabelActive}>Final Year</Text>
               </View>
             </View>
+
+            {/* Section: Account & settings menu */}
+            <View style={[styles.sectionCard, { marginTop: 4 }]}>
+              <Text style={styles.sectionCardLabel}>ACCOUNT SETTINGS</Text>
+              
+              {/* Edit Profile */}
+              <TouchableOpacity 
+                style={styles.menuRow} 
+                onPress={() => setIsEditMode(true)}
+              >
+                <View style={styles.menuRowLeft}>
+                  <Ionicons name="create-outline" size={20} color={Theme.colors.primary} style={styles.menuIcon} />
+                  <Text style={styles.menuText}>Edit Profile</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Theme.colors.textSecondary} />
+              </TouchableOpacity>
+              
+              <View style={styles.menuDivider} />
+
+              {/* Notifications */}
+              <TouchableOpacity 
+                style={styles.menuRow} 
+                onPress={() => navigation.navigate('Notifications')}
+              >
+                <View style={styles.menuRowLeft}>
+                  <Ionicons name="notifications-outline" size={20} color={Theme.colors.primary} style={styles.menuIcon} />
+                  <Text style={styles.menuText}>Notifications</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Theme.colors.textSecondary} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              {/* Saved Careers */}
+              <TouchableOpacity 
+                style={styles.menuRow} 
+                onPress={() => navigation.navigate('Saved')}
+              >
+                <View style={styles.menuRowLeft}>
+                  <Ionicons name="bookmark-outline" size={20} color={Theme.colors.primary} style={styles.menuIcon} />
+                  <Text style={styles.menuText}>Saved Careers</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Theme.colors.textSecondary} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              {/* Privacy & Security */}
+              <TouchableOpacity 
+                style={styles.menuRow} 
+                onPress={() => {
+                  Alert.alert(
+                    'Privacy & Security',
+                    'Career Lanka secures your data using Supabase Authentication and RLS policy rules. Your data is protected and private.',
+                    [{ text: 'Close', style: 'default' }]
+                  );
+                }}
+              >
+                <View style={styles.menuRowLeft}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color={Theme.colors.primary} style={styles.menuIcon} />
+                  <Text style={styles.menuText}>Privacy & Security</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Theme.colors.textSecondary} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              {/* Help & Support */}
+              <TouchableOpacity 
+                style={styles.menuRow} 
+                onPress={() => {
+                  Alert.alert(
+                    'Help & Support',
+                    'Need assistance? Contact support at support@careerlanka.ai or check our guide in the Home tab.',
+                    [{ text: 'Close', style: 'default' }]
+                  );
+                }}
+              >
+                <View style={styles.menuRowLeft}>
+                  <Ionicons name="help-circle-outline" size={20} color={Theme.colors.primary} style={styles.menuIcon} />
+                  <Text style={styles.menuText}>Help & Support</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Theme.colors.textSecondary} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              {/* About */}
+              <TouchableOpacity 
+                style={styles.menuRow} 
+                onPress={() => {
+                  Alert.alert(
+                    'About Career Lanka',
+                    'Career Lanka AI v1.0.0\nAn AI-powered Career Guidance and CV builder system designed for Sri Lankan undergraduates.',
+                    [{ text: 'Close', style: 'default' }]
+                  );
+                }}
+              >
+                <View style={styles.menuRowLeft}>
+                  <Ionicons name="information-circle-outline" size={20} color={Theme.colors.primary} style={styles.menuIcon} />
+                  <Text style={styles.menuText}>About</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Theme.colors.textSecondary} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              {/* Logout */}
+              <TouchableOpacity 
+                style={styles.menuRow} 
+                onPress={handleLogout}
+              >
+                <View style={styles.menuRowLeft}>
+                  <Ionicons name="log-out-outline" size={20} color={Theme.colors.error} style={styles.menuIcon} />
+                  <Text style={[styles.menuText, { color: Theme.colors.error }]}>Logout</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -500,6 +713,17 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     borderWidth: 3,
     borderColor: Theme.colors.primary,
+  },
+  avatarPlaceholder: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#1E293B',
+    borderWidth: 3,
+    borderColor: Theme.colors.primary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   verifiedBadge: {
     position: 'absolute',
@@ -947,5 +1171,35 @@ const styles = StyleSheet.create({
     color: '#0A0B0D',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  smallLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  menuRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  menuIcon: {
+    width: 24,
+    textAlign: 'center',
+  },
+  menuText: {
+    fontSize: 14,
+    color: Theme.colors.text,
+    fontWeight: '600',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: Theme.colors.border,
+    marginVertical: 2,
   },
 });

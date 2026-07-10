@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { MainTabParamList } from './types';
 import { Theme } from '../utils/theme';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 // Import Screens
 import DashboardScreen from '../screens/DashboardScreen';
 import AssessmentTabScreen from '../screens/AssessmentTabScreen';
@@ -14,6 +16,8 @@ import ProfileScreen from '../screens/ProfileScreen';
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function BottomTabNavigator() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -46,8 +50,8 @@ export default function BottomTabNavigator() {
           backgroundColor: '#0A0B0D',
           borderTopWidth: 1,
           borderTopColor: Theme.colors.border,
-          height: 76,
-          paddingBottom: 12,
+          height: 64 + Math.max(insets.bottom, 12),
+          paddingBottom: Math.max(insets.bottom, 12),
           paddingTop: 10,
           elevation: 10,
           shadowColor: '#000000',

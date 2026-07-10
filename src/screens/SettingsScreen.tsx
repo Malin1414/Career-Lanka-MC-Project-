@@ -31,7 +31,10 @@ export default function SettingsScreen({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             await signOut();
-            // AppNavigator will automatically navigate to Login because of the user observer
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
           },
         },
       ]

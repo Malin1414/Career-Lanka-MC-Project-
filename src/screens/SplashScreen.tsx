@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Animated, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { Theme } from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,9 +54,15 @@ export default function SplashScreen({ navigation }: Props) {
     if (!loading) {
       const timer = setTimeout(() => {
         if (user) {
-          navigation.replace('MainTabs');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'MainTabs' }],
+          });
         } else {
-          navigation.replace('Login');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
         }
       }, 2000); // 2 seconds splash display
 
@@ -71,8 +77,8 @@ export default function SplashScreen({ navigation }: Props) {
       <View style={styles.bubbleBottom} />
 
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-        <Animated.View style={[styles.logoContainer, { transform: [{ scale: pulseAnim }] }]}>
-          <Ionicons name="compass" size={84} color={Theme.colors.primary} />
+        <Animated.View style={[styles.logoImageContainer, { transform: [{ scale: pulseAnim }] }]}>
+          <Image source={require('../../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
         </Animated.View>
         
         <Text style={styles.appName}>Career Lanka</Text>
@@ -80,7 +86,7 @@ export default function SplashScreen({ navigation }: Props) {
       </Animated.View>
 
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="small" color={Theme.colors.white} />
+        <ActivityIndicator size="small" color={Theme.colors.primary} />
         <Text style={styles.loadingText}>Guiding your future path...</Text>
       </View>
     </View>
@@ -90,7 +96,7 @@ export default function SplashScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Theme.colors.primary,
+    backgroundColor: Theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: Theme.spacing.lg,
@@ -102,7 +108,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(5, 196, 143, 0.06)',
   },
   bubbleBottom: {
     position: 'absolute',
@@ -111,22 +117,26 @@ const styles = StyleSheet.create({
     width: 400,
     height: 400,
     borderRadius: 200,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(5, 196, 143, 0.04)',
   },
   content: {
     alignItems: 'center',
     marginBottom: 80,
     zIndex: 1,
   },
-  logoContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: Theme.colors.white,
+  logoImageContainer: {
+    width: 180,
+    height: 180,
+    borderRadius: 36,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Theme.spacing.lg,
     ...Theme.shadows.large,
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   appName: {
     fontSize: 28,

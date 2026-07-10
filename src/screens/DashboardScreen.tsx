@@ -62,10 +62,16 @@ export default function DashboardScreen({ navigation }: any) {
             style={styles.brandIconButton}
             onPress={() => navigation.navigate('Profile')}
           >
-            <Image 
-              source={{ uri: profile?.profile_photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop' }} 
-              style={styles.headerAvatar} 
-            />
+            {profile?.profile_photo && !profile.profile_photo.includes('unsplash.com') ? (
+              <Image 
+                source={{ uri: profile.profile_photo }} 
+                style={styles.headerAvatar} 
+              />
+            ) : (
+              <View style={styles.headerAvatarPlaceholder}>
+                <Ionicons name="person-outline" size={14} color={Theme.colors.primary} />
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -349,6 +355,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: Theme.colors.primary,
+  },
+  headerAvatarPlaceholder: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: Theme.colors.primary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   notificationBadge: {
     position: 'absolute',
