@@ -14,6 +14,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   JobOpportunities: undefined;
   MySkills: undefined;
+  RecruiterDashboard: undefined;
   // CV Builder screens
   AICVBuilderHome: undefined;
   CVInformationForm: undefined;

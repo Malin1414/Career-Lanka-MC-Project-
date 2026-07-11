@@ -16,18 +16,20 @@ import {
 import { Theme } from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { jobService, JobOpportunity } from '../services/jobService';
+import { useAuth } from '../context/AuthContext';
 
 export default function JobOpportunitiesScreen({ navigation }: any) {
+  const { profile } = useAuth();
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadJobs();
-  }, []);
+  }, [profile]);
 
   const loadJobs = async () => {
     try {
-      const data = await jobService.getJobs();
+      const data = await jobService.getJobs(profile || undefined);
       setJobs(data);
     } catch (e) {
       console.error(e);
@@ -128,9 +130,30 @@ export default function JobOpportunitiesScreen({ navigation }: any) {
                 <View style={styles.categoryBadge}>
                   <Text style={styles.categoryBadgeText}>{job.careerCategory}</Text>
                 </View>
+                {job.matchScore !== undefined && (
+                  <View style={[styles.matchBadge, { borderColor: job.matchScore > 75 ? Theme.colors.primary : Theme.colors.warning }]}>
+                    <Text style={[styles.matchBadgeText, { color: job.matchScore > 75 ? Theme.colors.primary : Theme.colors.warning }]}>
+                      {job.matchScore}% AI Match
+                    </Text>
+                  </View>
+                )}
               </View>
 
               <Text style={styles.descriptionText}>{job.description}</Text>
+
+              {job.skillGaps && job.skillGaps.length > 0 && (
+                <View style={styles.skillGapContainer}>
+                  <Text style={styles.skillGapTitle}>Potential Skill Gaps:</Text>
+                  <View style={styles.skillGapList}>
+                    {job.skillGaps.map((gap, idx) => (
+                      <View key={idx} style={styles.skillGapItem}>
+                        <Ionicons name="alert-circle-outline" size={12} color={Theme.colors.warning} />
+                        <Text style={styles.skillGapText}>{gap}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
 
               <View style={styles.actionsRow}>
                 <TouchableOpacity 
@@ -277,11 +300,54 @@ const styles = StyleSheet.create({
     color: Theme.colors.primary,
     fontWeight: '600',
   },
+  matchBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Theme.roundness.small,
+    borderWidth: 1,
+  },
+  matchBadgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
   descriptionText: {
     fontSize: 13,
     color: Theme.colors.textSecondary,
     lineHeight: 18,
+    marginBottom: Theme.spacing.sm,
+  },
+  skillGapContainer: {
+    backgroundColor: 'rgba(234, 179, 8, 0.05)',
+    padding: 10,
+    borderRadius: Theme.roundness.medium,
     marginBottom: Theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 179, 8, 0.1)',
+  },
+  skillGapTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: Theme.colors.warning,
+    marginBottom: 6,
+  },
+  skillGapList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  skillGapItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Theme.roundness.small,
+  },
+  skillGapText: {
+    fontSize: 11,
+    color: Theme.colors.textSecondary,
   },
   actionsRow: {
     flexDirection: 'row',

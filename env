@@ -1,0 +1,6 @@
+# Career Compass Lanka Environment Variables
+# Replace these placeholder values with your actual project keys.
+
+EXPO_PUBLIC_SUPABASE_URL=https://uckzreagroxrkhevsnum.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVja3pyZWFncm94cmtoZXZzbnVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTI5MTMsImV4cCI6MjA5Nzk2ODkxM30._zJGkBkZ2Zsb1RuKEOsmD_WDF5coADU_eGvxeKRRawY
+EXPO_PUBLIC_GEMINI_API_KEY=AQ.Ab8RN6KsNoOxyKsK5ECCUSupbrOOTgncLRRn-uFHgamZHOi7zw

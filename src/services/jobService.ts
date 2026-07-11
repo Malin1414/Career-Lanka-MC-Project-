@@ -1,3 +1,6 @@
+import { generateJobMatch } from './gemini';
+import { UserProfile } from '../types';
+
 export interface JobOpportunity {
   id: string;
   title: string;
@@ -9,6 +12,9 @@ export interface JobOpportunity {
   logoUrl?: string;
   description: string;
   externalUrl: string;
+  matchScore?: number;
+  matchReason?: string;
+  skillGaps?: string[];
 }
 
 export const MOCK_JOBS: JobOpportunity[] = [
@@ -75,9 +81,23 @@ export const MOCK_JOBS: JobOpportunity[] = [
 ];
 
 export const jobService = {
-  getJobs: async (): Promise<JobOpportunity[]> => {
+  getJobs: async (profile?: UserProfile): Promise<JobOpportunity[]> => {
     // Simulated API call delay
     await new Promise((resolve) => setTimeout(resolve, 400));
-    return MOCK_JOBS;
+
+    if (!profile) return MOCK_JOBS;
+
+    // Enhance jobs with AI matching if profile is provided
+    const enhancedJobs = await Promise.all(MOCK_JOBS.map(async (job) => {
+      const match = await generateJobMatch(profile, `${job.title} at ${job.companyName}. ${job.description}`);
+      return {
+        ...job,
+        matchScore: match.match_score,
+        matchReason: match.reason,
+        skillGaps: match.skill_gaps,
+      };
+    }));
+
+    return enhancedJobs;
   },
 };

@@ -16,14 +16,17 @@ import { Theme } from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { CVData } from '../types';
+import { generateProfessionalSummary } from '../services/gemini';
+import { ActivityIndicator } from 'react-native';
 
 const TABS = ['Personal', 'Education', 'Experience', 'Projects', 'Skills & Add'];
 
 export default function CVInformationFormScreen({ navigation }: any) {
-  const { cvData, saveCV } = useAuth();
+  const { cvData, saveCV, profile } = useAuth();
 
   // Tab State
   const [activeTab, setActiveTab] = useState(0);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
 
   // Form Fields State
   const [fullName, setFullName] = useState('');
@@ -237,7 +240,29 @@ export default function CVInformationFormScreen({ navigation }: any) {
               <Text style={styles.label}>City / Address</Text>
               <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Colombo, Sri Lanka" />
 
-              <Text style={styles.label}>Professional Summary</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Professional Summary</Text>
+                <TouchableOpacity
+                  style={styles.aiGenBtn}
+                  onPress={async () => {
+                    if (!profile) return;
+                    setIsAiGenerating(true);
+                    const summary = await generateProfessionalSummary(profile);
+                    setSummary(summary);
+                    setIsAiGenerating(false);
+                  }}
+                  disabled={isAiGenerating}
+                >
+                  {isAiGenerating ? (
+                    <ActivityIndicator size="small" color={Theme.colors.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="sparkles" size={14} color={Theme.colors.primary} />
+                      <Text style={styles.aiGenText}>AI Generate</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
               <TextInput 
                 style={[styles.input, styles.textArea]} 
                 value={summary} 
@@ -482,6 +507,27 @@ const styles = StyleSheet.create({
     color: Theme.colors.text,
     marginTop: Theme.spacing.sm,
     marginBottom: 4,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Theme.spacing.sm,
+    marginBottom: 4,
+  },
+  aiGenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(5, 196, 143, 0.1)',
+  },
+  aiGenText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: Theme.colors.primary,
   },
   input: {
     backgroundColor: Theme.colors.background,

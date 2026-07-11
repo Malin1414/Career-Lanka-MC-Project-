@@ -36,6 +36,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [degreeProgram, setDegreeProgram] = useState('');
   const [academicYear, setAcademicYear] = useState('1st Year');
   const [district, setDistrict] = useState('');
+  const [role, setRole] = useState<'student' | 'recruiter'>('student');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -88,11 +89,11 @@ export default function SignupScreen({ navigation }: Props) {
       degree_program: degreeProgram.trim(),
       academic_year: academicYear,
       district: district.trim() || 'Colombo',
-      skills: ['Python', 'JavaScript', 'SQL'],
-      interests: ['Software Development'],
+      skills: role === 'student' ? ['Python', 'JavaScript', 'SQL'] : [],
+      interests: role === 'student' ? ['Software Development'] : [],
     };
 
-    const { success, error } = await signUp(email.trim(), password, profileData);
+    const { success, error } = await signUp(email.trim(), password, profileData, role);
     setLoading(false);
 
     if (!success) {
@@ -134,7 +135,27 @@ export default function SignupScreen({ navigation }: Props) {
 
         {/* Card */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Academic Information</Text>
+          <Text style={styles.sectionTitle}>User Role</Text>
+          <View style={styles.roleSelectorContainer}>
+            <TouchableOpacity
+              style={[styles.roleOption, role === 'student' && styles.roleOptionSelected]}
+              onPress={() => setRole('student')}
+            >
+              <Ionicons name="school-outline" size={20} color={role === 'student' ? '#0A0B0D' : Theme.colors.textSecondary} />
+              <Text style={[styles.roleOptionText, role === 'student' && styles.roleOptionTextSelected]}>Student</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.roleOption, role === 'recruiter' && styles.roleOptionSelected]}
+              onPress={() => setRole('recruiter')}
+            >
+              <Ionicons name="briefcase-outline" size={20} color={role === 'recruiter' ? '#0A0B0D' : Theme.colors.textSecondary} />
+              <Text style={[styles.roleOptionText, role === 'recruiter' && styles.roleOptionTextSelected]}>Recruiter</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.sectionTitle}>
+            {role === 'student' ? 'Academic Information' : 'Professional Information'}
+          </Text>
 
           {/* Full Name */}
           <Text style={styles.label}>Full Name *</Text>
@@ -152,49 +173,72 @@ export default function SignupScreen({ navigation }: Props) {
           </View>
 
           {/* University */}
-          <Text style={styles.label}>University *</Text>
+          <Text style={styles.label}>{role === 'student' ? 'University *' : 'Company *'}</Text>
           <View style={getInputStyle('university')}>
             <TextInput
               style={styles.input}
-              placeholder="e.g. University of Colombo"
+              placeholder={role === 'student' ? "e.g. University of Colombo" : "e.g. Acme Corp"}
               placeholderTextColor={Theme.colors.textSecondary}
               value={university}
               onChangeText={setUniversity}
               onFocus={() => setFocusedField('university')}
               onBlur={() => setFocusedField(null)}
             />
-            <Ionicons name="business-outline" size={20} color={getIconColor('university')} style={styles.inputIconRight} />
+            <Ionicons name={role === 'student' ? "business-outline" : "briefcase-outline"} size={20} color={getIconColor('university')} style={styles.inputIconRight} />
           </View>
 
-          {/* Faculty */}
-          <Text style={styles.label}>Faculty *</Text>
-          <View style={getInputStyle('faculty')}>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. School of Computing"
-              placeholderTextColor={Theme.colors.textSecondary}
-              value={faculty}
-              onChangeText={setFaculty}
-              onFocus={() => setFocusedField('faculty')}
-              onBlur={() => setFocusedField(null)}
-            />
-            <Ionicons name="school-outline" size={20} color={getIconColor('faculty')} style={styles.inputIconRight} />
-          </View>
+          {role === 'student' && (
+            <>
+              {/* Faculty */}
+              <Text style={styles.label}>Faculty *</Text>
+              <View style={getInputStyle('faculty')}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. School of Computing"
+                  placeholderTextColor={Theme.colors.textSecondary}
+                  value={faculty}
+                  onChangeText={setFaculty}
+                  onFocus={() => setFocusedField('faculty')}
+                  onBlur={() => setFocusedField(null)}
+                />
+                <Ionicons name="school-outline" size={20} color={getIconColor('faculty')} style={styles.inputIconRight} />
+              </View>
 
-          {/* Degree Program */}
-          <Text style={styles.label}>Degree Program *</Text>
-          <View style={getInputStyle('degreeProgram')}>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. BSc Hons in Computer Science"
-              placeholderTextColor={Theme.colors.textSecondary}
-              value={degreeProgram}
-              onChangeText={setDegreeProgram}
-              onFocus={() => setFocusedField('degreeProgram')}
-              onBlur={() => setFocusedField(null)}
-            />
-            <Ionicons name="ribbon-outline" size={20} color={getIconColor('degreeProgram')} style={styles.inputIconRight} />
-          </View>
+              {/* Degree Program */}
+              <Text style={styles.label}>Degree Program *</Text>
+              <View style={getInputStyle('degreeProgram')}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. BSc Hons in Computer Science"
+                  placeholderTextColor={Theme.colors.textSecondary}
+                  value={degreeProgram}
+                  onChangeText={setDegreeProgram}
+                  onFocus={() => setFocusedField('degreeProgram')}
+                  onBlur={() => setFocusedField(null)}
+                />
+                <Ionicons name="ribbon-outline" size={20} color={getIconColor('degreeProgram')} style={styles.inputIconRight} />
+              </View>
+            </>
+          )}
+
+          {role === 'recruiter' && (
+            <>
+              {/* Designation */}
+              <Text style={styles.label}>Designation *</Text>
+              <View style={getInputStyle('faculty')}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. HR Manager"
+                  placeholderTextColor={Theme.colors.textSecondary}
+                  value={faculty}
+                  onChangeText={setFaculty}
+                  onFocus={() => setFocusedField('faculty')}
+                  onBlur={() => setFocusedField(null)}
+                />
+                <Ionicons name="person-circle-outline" size={20} color={getIconColor('faculty')} style={styles.inputIconRight} />
+              </View>
+            </>
+          )}
 
           {/* District */}
           <Text style={styles.label}>District of Residence</Text>
@@ -212,28 +256,32 @@ export default function SignupScreen({ navigation }: Props) {
           </View>
 
           {/* Academic Year */}
-          <Text style={styles.label}>Academic Year *</Text>
-          <View style={styles.yearSelectorContainer}>
-            {ACADEMIC_YEARS.map((year) => (
-              <TouchableOpacity
-                key={year}
-                style={[
-                  styles.yearOption,
-                  academicYear === year && styles.yearOptionSelected,
-                ]}
-                onPress={() => setAcademicYear(year)}
-              >
-                <Text
-                  style={[
-                    styles.yearOptionText,
-                    academicYear === year && styles.yearOptionTextSelected,
-                  ]}
-                >
-                  {year}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {role === 'student' && (
+            <>
+              <Text style={styles.label}>Academic Year *</Text>
+              <View style={styles.yearSelectorContainer}>
+                {ACADEMIC_YEARS.map((year) => (
+                  <TouchableOpacity
+                    key={year}
+                    style={[
+                      styles.yearOption,
+                      academicYear === year && styles.yearOptionSelected,
+                    ]}
+                    onPress={() => setAcademicYear(year)}
+                  >
+                    <Text
+                      style={[
+                        styles.yearOptionText,
+                        academicYear === year && styles.yearOptionTextSelected,
+                      ]}
+                    >
+                      {year}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
           <Text style={[styles.sectionTitle, { marginTop: Theme.spacing.md }]}>Account Credentials</Text>
 
@@ -362,6 +410,35 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Theme.colors.border,
     paddingBottom: Theme.spacing.xs,
+  },
+  roleSelectorContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: Theme.spacing.lg,
+  },
+  roleOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    borderRadius: Theme.roundness.medium,
+    backgroundColor: Theme.colors.background,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  roleOptionSelected: {
+    backgroundColor: Theme.colors.primary,
+    borderColor: Theme.colors.primary,
+  },
+  roleOptionText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Theme.colors.textSecondary,
+  },
+  roleOptionTextSelected: {
+    color: '#0A0B0D',
   },
   label: {
     fontSize: 13,

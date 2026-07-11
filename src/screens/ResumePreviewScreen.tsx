@@ -17,6 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { downloadPDF, shareCV } from '../utils/pdfHelper';
 
+const TEMPLATES = [
+  { id: 'classic', name: 'Classic', color: '#1F2937' },
+  { id: 'creative', name: 'Creative', color: '#05C48F' },
+  { id: 'modern', name: 'Modern', color: '#3B82F6' },
+];
+
 export default function ResumePreviewScreen({ route, navigation }: any) {
   const { cvData, saveCV } = useAuth();
   
@@ -26,6 +32,7 @@ export default function ResumePreviewScreen({ route, navigation }: any) {
 
   const [downloading, setDownloading] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState('classic');
 
   // Handle hardware back button to prevent navigation loop back to loading screen
   useEffect(() => {
@@ -134,13 +141,37 @@ export default function ResumePreviewScreen({ route, navigation }: any) {
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         
+        {/* Template Selector */}
+        <View style={styles.templateSelector}>
+          {TEMPLATES.map((t) => (
+            <TouchableOpacity
+              key={t.id}
+              style={[
+                styles.templateOption,
+                activeTemplate === t.id && styles.templateOptionActive,
+              ]}
+              onPress={() => setActiveTemplate(t.id)}
+            >
+              <View style={[styles.templateDot, { backgroundColor: t.color }]} />
+              <Text style={[styles.templateText, activeTemplate === t.id && styles.templateTextActive]}>
+                {t.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Printable Paper-like Card Mockup */}
         <View style={styles.paperCV}>
           
           {/* Header Block */}
           <View style={styles.cvHeaderBlock}>
             <Text style={styles.cvName}>{displayCvData.fullName}</Text>
-            <Text style={styles.cvHeadline}>{displayCvData.title}</Text>
+            <Text style={[
+              styles.cvHeadline,
+              { color: activeTemplate === 'classic' ? '#1F2937' : activeTemplate === 'creative' ? '#05C48F' : '#3B82F6' }
+            ]}>
+              {displayCvData.title}
+            </Text>
             
             {/* Contact Details Row */}
             <View style={styles.cvContactRow}>
@@ -165,7 +196,10 @@ export default function ResumePreviewScreen({ route, navigation }: any) {
             <View style={styles.cvLeftColumn}>
               
               {/* Skills */}
-              <Text style={styles.columnSecTitle}>SKILLS</Text>
+              <Text style={[
+                styles.columnSecTitle,
+                { borderBottomColor: activeTemplate === 'classic' ? '#E5E7EB' : activeTemplate === 'creative' ? '#05C48F' : '#3B82F6' }
+              ]}>SKILLS</Text>
               {displayCvData.skills.map((s: string, idx: number) => (
                 <Text key={idx} style={styles.skillBullet}>• {s}</Text>
               ))}
@@ -381,6 +415,40 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     minHeight: 560,
   },
+  templateSelector: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  templateOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 38,
+    borderRadius: Theme.roundness.medium,
+    backgroundColor: Theme.colors.card,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  templateOptionActive: {
+    borderColor: Theme.colors.primary,
+    backgroundColor: 'rgba(5, 196, 143, 0.05)',
+  },
+  templateDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  templateText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Theme.colors.textSecondary,
+  },
+  templateTextActive: {
+    color: Theme.colors.primary,
+  },
   cvHeaderBlock: {
     alignItems: 'center',
     marginBottom: 10,
@@ -394,7 +462,6 @@ const styles = StyleSheet.create({
   cvHeadline: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: Theme.colors.primary,
     marginTop: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -442,7 +509,6 @@ const styles = StyleSheet.create({
     color: '#374151',
     letterSpacing: 1,
     borderBottomWidth: 1.5,
-    borderBottomColor: '#E5E7EB',
     paddingBottom: 2,
     marginBottom: 6,
   },

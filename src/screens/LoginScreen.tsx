@@ -58,10 +58,19 @@ export default function LoginScreen({ navigation }: Props) {
     if (!success) {
       Alert.alert('Login Failed', error || 'Invalid email or password.');
     } else {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' }],
-      });
+      // Fetch fresh session to get role
+      const { user } = useAuth();
+      if (user?.role === 'recruiter') {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'RecruiterDashboard' }],
+        });
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs' }],
+        });
+      }
     }
   };
 
