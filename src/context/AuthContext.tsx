@@ -4,7 +4,7 @@ import { UserProfile, AssessmentAnswers, SavedCareer, CVData } from '../types';
 import { supabase } from '../services/supabase';
 
 interface AuthContextType {
-  user: { id: string; email: string } | null;
+  user: { id: string; email: string; role: 'student' | 'recruiter' } | null;
   profile: UserProfile | null;
   savedCareers: SavedCareer[];
   assessmentAnswers: AssessmentAnswers | null;
@@ -15,7 +15,8 @@ interface AuthContextType {
   signUp: (
     email: string,
     password: string,
-    profileData: Omit<UserProfile, 'id' | 'updated_at'>
+    profileData: Omit<UserProfile, 'id' | 'updated_at'>,
+    role: 'student' | 'recruiter'
   ) => Promise<{ success: boolean; error: string | null }>;
   signOut: () => Promise<void>;
   updateProfile: (profileData: Partial<UserProfile>) => Promise<{ success: boolean; error: string | null }>;
@@ -110,7 +111,7 @@ const getSavedCareersKey = (uid: string) => `@saved_careers_${uid}`;
 const getAssessmentAnswersKey = (uid: string) => `@assessment_answers_${uid}`;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string; role: 'student' | 'recruiter' } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [savedCareers, setSavedCareers] = useState<SavedCareer[]>([]);
   const [assessmentAnswers, setAssessmentAnswers] = useState<AssessmentAnswers | null>(null);
@@ -246,7 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check against default local demo account
     if (cleanEmail === 'demo@student.lk') {
       if (password === '123456') {
-        const mockSession = { id: 'demo-student', email: 'demo@student.lk' };
+        const mockSession = { id: 'demo-student', email: 'demo@student.lk', role: 'student' as const };
         try {
           await AsyncStorage.setItem('@user_session', JSON.stringify(mockSession));
           
@@ -313,7 +314,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
 
         if (matchedLocalUser && matchedLocalUser.password === password) {
-          const userSession = { id: matchedLocalUser.id, email: matchedLocalUser.email };
+          const userSession = {
+            id: matchedLocalUser.id,
+            email: matchedLocalUser.email,
+            role: (matchedLocalUser.role || 'student') as 'student' | 'recruiter'
+          };
           await AsyncStorage.setItem('@user_session', JSON.stringify(userSession));
 
           const localProfileKey = getProfileKey(matchedLocalUser.id);
@@ -344,7 +349,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Supabase Authenticated - Load Profile and credentials
       const uid = authData.user.id;
-      const userSession = { id: uid, email: cleanEmail };
+
+      // Determine role from metadata or profile table (assuming metadata for now or default student)
+      const role = (authData.user.user_metadata?.role || 'student') as 'student' | 'recruiter';
+      const userSession = { id: uid, email: cleanEmail, role };
       await AsyncStorage.setItem('@user_session', JSON.stringify(userSession));
 
       const userProfileKey = getProfileKey(uid);
@@ -433,7 +441,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (
     email: string,
     password: string,
-    profileData: Omit<UserProfile, 'id' | 'updated_at'>
+    profileData: Omit<UserProfile, 'id' | 'updated_at'>,
+    role: 'student' | 'recruiter' = 'student'
   ) => {
     const cleanEmail = email.trim().toLowerCase();
 
@@ -446,6 +455,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
+        options: {
+          data: { role }
+        }
       });
 
       if (authError) {
@@ -519,6 +531,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: newUserId,
         email: cleanEmail,
         password: password,
+        role: role,
       };
       await AsyncStorage.setItem(
         '@registered_users',
